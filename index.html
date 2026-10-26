@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#fbe5ec">
+  <title>Next B3A · 富泰邨 ↔ 深圳湾口岸</title>
+  <style>
+    :root { color-scheme: light; font-family: "Segoe UI", "Microsoft YaHei", sans-serif; color: #592b40; background: #fbe5ec; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; padding: 48px 24px; display: grid; place-items: center; background: radial-gradient(ellipse at top left, #fff3f7 0, transparent 65%), linear-gradient(135deg, #fbe5ec, #f6d5e3); }
+    main { width: min(100%, 1160px); }
+    .boards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: start; }
+    @media (max-width: 850px) { main { max-width: 680px; } .boards { grid-template-columns: 1fr; } }
+    .refresh-progress { height: 7px; border-radius: 99px; overflow: hidden; margin-top: 18px; background: #f7e5ed; }
+    .progress-fill { width: 100%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #d98bab, #ae476f); transform: scaleX(0); transform-origin: left; will-change: transform; }
+    .refresh-progress[data-loading="true"] .progress-fill { width: 40%; animation: loading-slide 1.3s ease-in-out infinite; }
+    @keyframes loading-slide { from { transform: translateX(-100%); } to { transform: translateX(350%); } }
+    @media (prefers-reduced-motion: reduce) { .refresh-progress[data-loading="true"] .progress-fill { animation: none; transform: scaleX(1); } }
+    .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+    header { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 24px; }
+    .clock { font-size: 13px; color: #7a5265; font-variant-numeric: tabular-nums; }
+    .board { background: #fffafc; border: 1px solid #efd4df; border-radius: 24px; overflow: hidden; box-shadow: 0 18px 48px #8e3e6410; }
+    .route { padding: 32px; background: linear-gradient(125deg, #783951, #984c6b); color: white; }
+    .route-top { display: flex; align-items: center; gap: 14px; margin-bottom: 26px; }
+    .badge { background: #ffe2ee; color: #71324c; font-size: 28px; font-weight: 800; padding: 8px 16px; border-radius: 10px; }
+    .route-top span:last-child { font-size: 13px; color: #f8dce7; }
+    .from { margin: 0 0 10px; font-size: 16px; color: #f8dce7; }
+    h1 { margin: 0; font-weight: 600; font-size: clamp(25px, 5vw, 36px); letter-spacing: -.035em; }
+    .stop { margin: 12px 0 0; color: #f8dce7; font-size: 13px; line-height: 1.8; }
+    .content { padding: 28px 32px 20px; }
+    .section-head { display: flex; justify-content: space-between; gap: 16px; align-items: center; }
+    h2 { font-size: 12px; letter-spacing: .13em; text-transform: uppercase; margin: 0; }
+    [data-role="status"] { font-size: 12px; color: #80586b; text-align: right; }
+    [data-role="status"][data-state="error"] { color: #9b4e24; }
+    [data-role="arrivals"] { list-style: none; padding: 0; margin: 18px 0 0; }
+    .arrival { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 0; border-top: 1px solid #f0dfe7; }
+    .arrival:first-child { border-top: none; padding-top: 8px; }
+    .arrival-label { font-size: 14px; font-weight: 600; }
+    .detail { color: #80586b; font-size: 13px; margin-top: 6px; max-width: 330px; }
+    .time { white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .minutes { font-size: 38px; font-weight: 650; letter-spacing: -.05em; }
+    .arrival:first-child .minutes { font-size: 64px; }
+    .unit { margin-left: 8px; color: #80586b; font-size: 14px; }
+    .message { padding: 30px 0; color: #80586b; line-height: 1.6; }
+    .refresh-bar { border-top: 1px solid #f0dfe7; margin-top: 12px; padding-top: 20px; display: flex; justify-content: space-between; gap: 14px; align-items: center; }
+    .refresh-info { font-size: 12px; line-height: 1.8; color: #80586b; }
+    button { background: #fae9f0; border: 1px solid #edcdda; color: #71324c; border-radius: 12px; padding: 11px 15px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: background .2s ease; }
+    button:hover { background: #f4d6e3; }
+    button:focus-visible { outline: 3px solid #ae476f; outline-offset: 3px; }
+    button:disabled { opacity: .6; cursor: wait; }
+    footer { color: #7a5265; font-size: 12px; line-height: 1.8; padding: 20px 4px; }
+    a { color: inherit; text-underline-offset: 3px; }
+    @media (max-width: 480px) { body { padding: 24px 16px; } .route { padding: 25px 22px; } .content { padding: 24px 22px 20px; } .arrival:first-child .minutes { font-size: 52px; } header { align-items: flex-start; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header><span class="eyebrow">B3A · 往返候车时间</span><span class="clock" id="clock">香港时间</span></header>
+    <div class="boards">
+    <section class="board" id="outbound" aria-label="富泰邨往深圳湾口岸">
+      <div class="route">
+        <div class="route-top"><span class="badge">B3A</span><span>城巴 · 往返专线</span></div>
+        <p class="from">去程 · 富泰邨出发</p>
+        <h1>往深圳湾口岸 <span aria-hidden="true">↗</span></h1>
+        <p class="stop">富泰邨 → 深圳湾口岸<br>富泰邨，青山公路站上车</p>
+      </div>
+      <div class="content">
+        <div class="section-head"><h2>接下来的班次</h2><span data-role="status" role="status">连线中…</span></div>
+        <ol data-role="arrivals" aria-label="在富泰邨候车的分钟数" aria-live="polite"><li class="message">正在查询城巴资料…</li></ol>
+        <div class="refresh-bar">
+          <div class="refresh-info"><div data-role="updated">等待首次更新</div><div data-role="countdown">每 30 秒刷新</div></div>
+          <button data-role="refresh" type="button">↻ 立即刷新</button>
+        </div>
+        <div class="refresh-progress" data-role="progress" role="progressbar" aria-valuemin="0" aria-valuemax="30" aria-valuenow="0" aria-label="自动刷新进度"><div class="progress-fill" data-role="progress-fill"></div></div>
+      </div>
+    </section>
+    </div>
+    <footer>显示各出发站的候车分钟数，并非全程车程。进度条代表 30 秒自动刷新周期。<br>
+      数据来源：<a href="https://data.gov.hk/en-data/dataset/ctb-eta-transport-realtime-eta" target="_blank" rel="noopener noreferrer">城巴开放数据 · DATA.GOV.HK</a>。预报时间可能调整。<br>
+      页面开启时每 30 秒查询；城巴资料约每分钟更新。
+    </footer>
+  </main>
+  <script>
+    'use strict';
+    // Citybus: outbound Fu Tai = 003261 / O / 14;
+    // inbound Shenzhen Bay = 003208 / I / 1, calling at Fu Tai 003262.
+    const outbound = document.getElementById('outbound');
+    const inbound = outbound.cloneNode(true);
+    inbound.id = 'inbound';
+    inbound.setAttribute('aria-label', '深圳湾口岸往富泰邨');
+    inbound.querySelector('.from').textContent = '返程 · 深圳湾口岸出发';
+    inbound.querySelector('h1').textContent = '往富泰邨 ↙';
+    inbound.querySelector('.stop').innerHTML = '深圳湾口岸 → 富泰邨<br>乘往山景邨方向，在富泰商场（青山公路）下车';
+    inbound.querySelector('[data-role="arrivals"]').setAttribute('aria-label', '在深圳湾口岸候车的分钟数');
+    outbound.after(inbound);
+
+    function setupBoard(board, stop, direction, sequence) {
+    const ENDPOINT = 'https://rt.data.gov.hk/v2/transport/citybus/eta/CTB/' + stop + '/B3A';
+    const REFRESH_MS = 30000;
+    const MAX_AGE_MS = 5 * 60000;
+    const el = name => board.querySelector('[data-role="' + name + '"]');
+    const hkTime = timestamp => new Date(timestamp).toLocaleTimeString('en-GB', { timeZone: 'Asia/Hong_Kong', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    let rows = [], sourceTime = 0, lastChecked = 0, nextRefresh = 0, loading = false, error = false, hasData = false;
+
+    function render() {
+      const now = Date.now();
+      const stale = hasData && now - sourceTime > MAX_AGE_MS;
+      el('status').dataset.state = error || stale ? 'error' : 'ok';
+      el('status').textContent = loading ? '更新中…' : error ? '连线失败' : stale ? '资料已过时' : hasData ? '● 即时预报' : '连线中…';
+      const valid = stale || error ? [] : rows.filter(row => row.time >= now);
+      const list = document.createDocumentFragment();
+      valid.slice(0, 3).forEach((row, index) => {
+        const item = document.createElement('li'); item.className = 'arrival';
+        const info = document.createElement('div');
+        const label = document.createElement('div'); label.className = 'arrival-label'; label.textContent = index === 0 ? '下一班' : index === 1 ? '再下一班' : '稍后班次';
+        const detail = document.createElement('div'); detail.className = 'detail';
+        detail.textContent = hkTime(row.time).slice(0, 5) + ' 香港时间' + (row.rmk_sc || row.rmk_en ? ' · ' + (row.rmk_sc || row.rmk_en) : ' · 预计时间');
+        info.append(label, detail);
+        const time = document.createElement('div'); time.className = 'time';
+        const minutes = document.createElement('span'); minutes.className = 'minutes';
+        const remaining = (row.time - now) / 60000;
+        minutes.textContent = remaining < 1 ? '<1' : String(Math.ceil(remaining));
+        const unit = document.createElement('span'); unit.className = 'unit'; unit.textContent = '分钟';
+        time.append(minutes, unit); item.append(info, time); list.append(item);
+      });
+      if (!valid.length) {
+        const message = document.createElement('li'); message.className = 'message';
+        const remarks = [...new Set(rows.map(row => row.rmk_sc || row.rmk_en).filter(Boolean))].join(' · ');
+        message.textContent = error ? '未能取得班次，请检查网络。每 30 秒自动重试。' : stale ? '城巴资料已超过 5 分钟，正在等待最新预报。' : !hasData ? '正在查询城巴资料…' : '暂无即将到站的班次预报。' + (remarks ? ' ' + remarks : ' 请稍后再查看。');
+        list.append(message);
+      }
+      // Avoid announcing the same list again on every clock tick.
+      const wrapper = document.createElement('ol'); wrapper.append(list);
+      if (el('arrivals').innerHTML !== wrapper.innerHTML) el('arrivals').replaceChildren(...wrapper.childNodes);
+      el('updated').textContent = lastChecked ? '上次更新 ' + hkTime(lastChecked) + ' 香港时间' : '等待首次更新';
+      el('countdown').textContent = loading ? '正在取得城巴资料…' : Math.max(0, Math.ceil((nextRefresh - now) / 1000)) + ' 秒后自动刷新';
+      el('progress').dataset.loading = String(loading);
+      if (loading) {
+        el('progress').removeAttribute('aria-valuenow');
+        el('progress').setAttribute('aria-valuetext', '正在获取最新班次');
+      } else {
+        const seconds = Math.max(0, Math.min(30, 30 - (nextRefresh - now) / 1000));
+        el('progress').setAttribute('aria-valuenow', seconds.toFixed(1));
+        el('progress').setAttribute('aria-valuetext', Math.ceil(30 - seconds) + ' 秒后自动刷新');
+        if (reducedMotion.matches) progressFill.style.transform = 'scaleX(' + seconds / 30 + ')';
+      }
+    }
+
+    async function refresh() {
+      if (loading) return;
+      loading = true; nextRefresh = Date.now() + REFRESH_MS; el('refresh').disabled = true; render();
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 12000);
+      try {
+        const response = await fetch(ENDPOINT, { cache: 'no-store', signal: controller.signal });
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        const payload = await response.json();
+        if (!Array.isArray(payload.data)) throw new Error('Invalid ETA data');
+        sourceTime = Date.parse(payload.generated_timestamp);
+        if (!Number.isFinite(sourceTime)) throw new Error('Missing timestamp');
+        const seen = new Set();
+        rows = payload.data.filter(row => row.co === 'CTB' && row.route === 'B3A' && row.stop === stop && row.dir === direction && Number(row.seq) === sequence)
+          .map(row => ({ ...row, time: row.eta ? Date.parse(row.eta) : NaN }))
+          .filter(row => {
+            const stamp = Date.parse(row.data_timestamp);
+            if (Number.isFinite(stamp) && Date.now() - stamp > MAX_AGE_MS) return false;
+            if (!Number.isFinite(row.time)) return Boolean(row.rmk_sc || row.rmk_en);
+            if (seen.has(row.time)) return false;
+            seen.add(row.time); return true;
+          }).sort((a, b) => a.time - b.time);
+        lastChecked = Date.now(); hasData = true; error = false;
+      } catch (err) {
+        error = true;
+        console.warn('Citybus ETA request failed:', err);
+      } finally {
+        clearTimeout(timeout); loading = false; el('refresh').disabled = false; render();
+      }
+    }
+
+    el('refresh').addEventListener('click', refresh);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() >= nextRefresh) refresh(); });
+    window.addEventListener('online', refresh);
+    function tick() {
+      if (!loading && Date.now() >= nextRefresh) refresh();
+      else render();
+    }
+    // Animate only the transform each frame; ETA text still updates once a second.
+    const progressFill = el('progress-fill');
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    function animateProgress() {
+      if (!loading && !reducedMotion.matches) {
+        const fraction = Math.max(0, Math.min(1, 1 - (nextRefresh - Date.now()) / REFRESH_MS));
+        progressFill.style.transform = 'scaleX(' + fraction + ')';
+      }
+      requestAnimationFrame(animateProgress);
+    }
+    refresh(); tick(); setInterval(tick, 1000); requestAnimationFrame(animateProgress);
+    }
+    setupBoard(outbound, '003261', 'O', 14);
+    setupBoard(inbound, '003208', 'I', 1);
+    function updateClock() {
+      document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Hong_Kong' }) + ' 香港时间';
+    }
+    updateClock(); setInterval(updateClock, 1000);
+  </script>
+</body>
+</html>
+
+
